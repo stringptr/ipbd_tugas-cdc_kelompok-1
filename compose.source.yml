@@ -1,0 +1,68 @@
+services:
+  kafka:
+    image: quay.io/debezium/kafka:3.5
+    hostname: kafka
+    ports:
+      - 9092:9092
+    environment:
+      CLUSTER_ID: "fe51411fe794ed682d0f1a49e59c564a"
+      NODE_ID: "1"
+      NODE_ROLE: "combined"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+
+  connect:
+    image: quay.io/debezium/connect:3.5
+    ports:
+      - 8083:8083
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      REST_HOST_NAME: 0.0.0.0
+    depends_on:
+      - kafka
+      - postgres-a
+
+  replicator:
+    build:
+      context: ./replicator
+      dockerfile: Containerfile
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_TOPIC: cdc.public.products
+      TARGET_HOST: ${TARGET_HOST}
+      TARGET_PORT: 5432
+      TARGET_DB: appdb
+      TARGET_USER: postgres
+      TARGET_PASSWORD: postgres
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
+  postgres-a:
+    image: postgres:17-alpine3.23
+    container_name: postgres-a
+    ports:
+      - 5433:5432
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init-source.sql

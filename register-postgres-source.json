@@ -1,0 +1,19 @@
+{
+  "name": "pg-a-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres-a",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "postgres",
+    "database.dbname": "appdb",
+    "topic.prefix": "cdc",
+    "plugin.name": "pgoutput",
+    "slot.name": "dbz_slot",
+    "publication.name": "dbz_pub",
+    "publication.autocreate.mode": "disabled",
+    "table.include.list": "public.products",
+    "snapshot.mode": "initial",
+    "tombstones.on.delete": "false"
+  }
+}
